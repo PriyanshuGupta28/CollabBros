@@ -1,6 +1,6 @@
-.react-codemirror2 > .CodeMirror:first-child {
+/* .react-codemirror2 > .CodeMirror:first-child {
   display: none;
-}
+} */
 
 .CodeMirror {
   height: 700px !important;
