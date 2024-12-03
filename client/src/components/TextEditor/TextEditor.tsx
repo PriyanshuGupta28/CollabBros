@@ -100,9 +100,11 @@ const TextEditor: React.FC = () => {
         }}
         onBeforeChange={(editor, data, value) => {
           setCode(value);
+          console.log("onBeforeChange :", editor, data, value);
         }}
         onChange={(editor, data, value) => {
           setCode(value);
+          console.log("onChange :", editor, data, value);
         }}
       />
     </>
