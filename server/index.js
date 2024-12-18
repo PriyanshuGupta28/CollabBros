@@ -2,7 +2,10 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
+const mongoose = require("mongoose");
 require("dotenv").config();
+
+const { setupSocketEvents } = require("./controllers/roomController");
 
 const app = express();
 const server = http.createServer(app);
@@ -18,44 +21,29 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-let rooms = {};
-
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
-
-  // Handle user joining a room
-  socket.on("joinRoom", ({ room, username }) => {
-    socket.join(room);
-    if (!rooms[room]) rooms[room] = { users: [], code: "" };
-    rooms[room].users.push(username);
-
-    // Send live data to everyone in the room
-    io.to(room).emit("liveData", {
-      message: `User ${username} joined the room!`,
-    });
-
-    // Notify others in the room
-    socket.to(room).emit("userJoined", username);
+// MongoDB connection
+mongoose
+  .connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => {
+    console.log("Connected to MongoDB");
+  })
+  .catch((err) => {
+    console.log("Error connecting to MongoDB:", err);
   });
 
-  // Handle code changes
-  socket.on("codeChange", ({ room, code }) => {
-    rooms[room].code = code;
-    io.to(room).emit("codeUpdate", code);
-    io.to(room).emit("liveData", { message: "Code has been updated!" });
-  });
-
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-  });
-});
+// Setup Socket.IO events
+setupSocketEvents(io);
 
 // Routes
 app.get("/", (req, res) => {
   res.send("CollabEdit backend running!");
 });
 
-const PORT = 5000;
+// Start the server
+const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
