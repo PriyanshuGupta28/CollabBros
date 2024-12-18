@@ -1,8 +1,8 @@
 import { Stack, Typography } from "@mui/material";
 import TextEditor from "./components/TextEditor/TextEditor";
-import "./App.css";
 import Navbar from "./components/Navbar/Navbar";
 import Footer from "./components/Footer/Footer";
+import "./App.css";
 
 function App() {
   return (
