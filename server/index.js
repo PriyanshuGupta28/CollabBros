@@ -2,12 +2,14 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
+require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
+const allowedOrigins = process.env.ALLOWED_ORIGINS.split(",");
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "https://collabbros.pages.dev"],
+    origin: allowedOrigins, // Use the allowed origins from .env
     methods: ["GET", "POST"],
   },
 });
@@ -21,27 +23,30 @@ let rooms = {};
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
+  // Handle user joining a room
   socket.on("joinRoom", ({ room, username }) => {
     socket.join(room);
     if (!rooms[room]) rooms[room] = { users: [], code: "" };
     rooms[room].users.push(username);
-    console.log(`User ${username} joined room ${room}`);
 
-    // Send the existing code in the room to the new user
-    socket.emit("loadCode", rooms[room].code);
+    // Send live data to everyone in the room
+    io.to(room).emit("liveData", {
+      message: `User ${username} joined the room!`,
+    });
 
     // Notify others in the room
     socket.to(room).emit("userJoined", username);
   });
 
+  // Handle code changes
   socket.on("codeChange", ({ room, code }) => {
-    rooms[room].code = code; // Save the code
-    socket.to(room).emit("codeUpdate", code); // Broadcast to others
+    rooms[room].code = code;
+    io.to(room).emit("codeUpdate", code);
+    io.to(room).emit("liveData", { message: "Code has been updated!" });
   });
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
-    // Handle room cleanup if needed
   });
 });
 
@@ -51,6 +56,6 @@ app.get("/", (req, res) => {
 });
 
 const PORT = 5000;
-server.listen(PORT, () =>
-  console.log(`Server running on http://localhost:${PORT}`)
-);
+server.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
