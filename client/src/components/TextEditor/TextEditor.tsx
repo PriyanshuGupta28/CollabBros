@@ -62,7 +62,7 @@ const TextEditor: React.FC = () => {
   }, [room, username]);
 
   const handleCodeChange = (newCode: string) => {
-    setCode(newCode); // Update the code state
+    setCode(newCode);
     if (socket) {
       // Emit the code change to the server
       socket.emit("codeChange", { room, code: newCode });
