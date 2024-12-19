@@ -1,5 +1,4 @@
-// /models/roomModel.js
-const mongoose = require("mongoose");
+import mongoose from "mongoose"; // Use import for mongoose
 
 const roomSchema = new mongoose.Schema({
   roomName: { type: String, required: true, unique: true },
@@ -9,4 +8,5 @@ const roomSchema = new mongoose.Schema({
 
 const Room = mongoose.model("Room", roomSchema);
 
-module.exports = Room;
+// Export the Room model
+export default Room; // Use export default for the model
