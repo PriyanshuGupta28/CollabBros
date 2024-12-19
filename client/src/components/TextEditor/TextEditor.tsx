@@ -46,6 +46,13 @@ const TextEditor: React.FC = () => {
     const socketIo: Socket = io(VITE_APP_SOCKET_SERVER); // Replace with your server URL
 
     setSocket(socketIo);
+    socketIo.on("connect", () => {
+      console.log("Connected to WebSocket server!");
+    });
+
+    socketIo.on("disconnect", () => {
+      console.log("Disconnected from WebSocket server!");
+    });
 
     // Join the room and notify others when a user joins
     socketIo.emit("joinRoom", { room, username });
