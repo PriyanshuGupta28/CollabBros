@@ -1,16 +1,16 @@
-// /routes/roomRoutes.js
-const express = require("express");
-const router = express.Router();
-const { joinRoom, codeChange } = require("../controllers/roomController"); // Import controller functions
+import express from "express"; // Import express
+import { Router } from "express"; // Import Router from express
+import { joinRoom, codeChange } from "../controllers/roomController.js"; // Import controller functions
 
-// Example route, can be expanded if you need to provide APIs for room details
-router.get("/", (req, res) => {
+const roomRoute = Router(); // Initialize router
+
+// Example route for checking room status
+roomRoute.get("/", (req, res) => {
   res.send("CollabEdit Room Routes");
 });
 
-// You can add other routes for handling HTTP requests for room management here
-// Example: Get room data
-router.get("/:roomName", async (req, res) => {
+// Route to get room details (could be expanded to get room info)
+roomRoute.get("/:roomName", async (req, res) => {
   try {
     const room = await Room.findOne({ roomName: req.params.roomName });
     if (!room) {
@@ -23,4 +23,5 @@ router.get("/:roomName", async (req, res) => {
   }
 });
 
-module.exports = router;
+// Export the router as default
+export default roomRoute;
