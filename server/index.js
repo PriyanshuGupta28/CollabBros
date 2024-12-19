@@ -40,7 +40,7 @@ mongoose
   });
 
 // Routes
-app.use("/api/rooms", roomRoutes); // Attach room routes
+app.use("/", roomRoutes); // Attach room routes
 
 // Start the server
 const PORT = process.env.PORT || 5000;
