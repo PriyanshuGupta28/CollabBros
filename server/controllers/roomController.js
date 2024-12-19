@@ -1,4 +1,4 @@
-const Room = require("../models/roomModel");
+import Room from "../models/roomModel.js"; // Correct import for Room model
 
 // Room handling logic
 const joinRoom = async (socket, room, username) => {
@@ -45,25 +45,5 @@ const codeChange = async (socket, room, code) => {
   }
 };
 
-// Socket.IO connection
-const setupSocketEvents = (io) => {
-  io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
-
-    // Handle user joining a room
-    socket.on("joinRoom", async ({ room, username }) => {
-      await joinRoom(socket, room, username);
-    });
-
-    // Handle code changes
-    socket.on("codeChange", async ({ room, code }) => {
-      await codeChange(socket, room, code);
-    });
-
-    socket.on("disconnect", () => {
-      console.log("User disconnected:", socket.id);
-    });
-  });
-};
-
-module.exports = { setupSocketEvents };
+// Export controller methods
+export { joinRoom, codeChange }; // Export functions using ES6 syntax
