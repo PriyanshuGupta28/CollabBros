@@ -1,18 +1,23 @@
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const cors = require("cors");
-const mongoose = require("mongoose");
-require("dotenv").config();
+import express from "express";
+import mongoose from "mongoose";
+import cors from "cors";
+import dotenv from "dotenv";
+import { Server as HttpServer } from "http"; // Import Server from http and rename it to HttpServer to avoid conflict
+import { Server as SocketServer } from "socket.io"; // Import Server from socket.io and rename it to SocketServer
+import roomRoutes from "./routes/roomRoute.js"; // Import room routes
 
-const { setupSocketEvents } = require("./controllers/roomController");
+dotenv.config();
 
 const app = express();
-const server = http.createServer(app);
+
+// Create HTTP server instance
+const server = new HttpServer(app);
+
+// Allow cross-origin requests (use environment variable for allowed origins)
 const allowedOrigins = process.env.ALLOWED_ORIGINS.split(",");
-const io = new Server(server, {
+const io = new SocketServer(server, {
   cors: {
-    origin: allowedOrigins, // Use the allowed origins from .env
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
   },
 });
@@ -34,13 +39,8 @@ mongoose
     console.log("Error connecting to MongoDB:", err);
   });
 
-// Setup Socket.IO events
-setupSocketEvents(io);
-
 // Routes
-app.get("/", (req, res) => {
-  res.send("CollabEdit backend running!");
-});
+app.use("/api/rooms", roomRoutes); // Attach room routes
 
 // Start the server
 const PORT = process.env.PORT || 5000;
