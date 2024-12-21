@@ -26,6 +26,7 @@ import {
   SelectAll,
 } from "@mui/icons-material";
 import ShortcutIcon from "@mui/icons-material/Shortcut";
+import logo from '../../../public/logo.png'
 
 // Transition for the Dialog
 const Transition = React.forwardRef(function Transition(props: any, ref: any) {
@@ -54,6 +55,7 @@ const Navbar: React.FC = () => {
           boxSizing: "border-box",
           padding: "1rem 2rem",
           width: "100%",
+          height: "4rem",
           alignItems: "center",
           top: 0,
           position: "sticky",
@@ -66,7 +68,14 @@ const Navbar: React.FC = () => {
           },
         }}
       >
-        <Typography variant="h6">CollabBros</Typography>
+        <Stack>
+          <Stack
+          component={'img'}
+            src={logo}
+            sx={{ width: "100%", height: "4rem",objectFit: "contain" }}
+            alt={"CollabBros Logo"}
+          />
+        </Stack>
         <Stack
           sx={{
             flexDirection: "row",
