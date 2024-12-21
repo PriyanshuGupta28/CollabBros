@@ -1,49 +1,67 @@
-import Room from "../models/roomModel.js"; // Correct import for Room model
+const Room = require("../models/roomModel");
 
-// Room handling logic
-const joinRoom = async (socket, room, username) => {
-  socket.join(room);
+// Create a new room
+const createRoom = async (req, res) => {
+  try {
+    const roomId = Math.random().toString(36).substring(2, 7); // Generate random roomId
+    const newRoom = new Room({
+      roomId,
+      users: [],
+      data: "", // Initial data can be empty or a default value
+      createdAt: new Date(),
+    });
 
-  // Find or create the room in MongoDB
-  let roomData = await Room.findOne({ roomName: room });
-
-  if (!roomData) {
-    // If room doesn't exist, create it
-    roomData = new Room({ roomName: room, users: [username], code: "" });
-    await roomData.save();
-  } else {
-    // If room exists, add user to the room
-    roomData.users.push(username);
-    await roomData.save();
-  }
-
-  // Send the current code to the user who joined the room
-  socket.emit("codeUpdate", roomData.code);
-
-  // Send live data to everyone in the room
-  socket.to(room).emit("liveData", {
-    message: `User ${username} joined the room!`,
-  });
-
-  // Notify others in the room
-  socket.to(room).emit("userJoined", username);
-};
-
-const codeChange = async (socket, room, code) => {
-  // Update the room's code in MongoDB
-  let roomData = await Room.findOne({ roomName: room });
-
-  if (roomData) {
-    roomData.code = code; // Update the code
-    await roomData.save(); // Save the updated code to MongoDB
-
-    // Broadcast the updated code to everyone in the room
-    socket.to(room).emit("codeUpdate", code);
-    socket.to(room).emit("liveData", { message: "Code has been updated!" });
-  } else {
-    console.error("Room not found");
+    await newRoom.save();
+    res.status(201).json({ success: true, roomId });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-// Export controller methods
-export { joinRoom, codeChange }; // Export functions using ES6 syntax
+// Update data for a specific room if it exists
+const getOrUpdateRoomData = async (req, res) => {
+  const { roomId } = req.params;
+  // Handle GET request (fetch room data)
+  if (req.method === "GET") {
+    try {
+      const room = await Room.findOne({ roomId });
+      if (!room) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Room not found" });
+      }
+
+      res.json({ success: true, data: room });
+    } catch (error) {
+      console.error("Error fetching room data:", error);
+      res.status(500).json({ success: false, message: "Server error" });
+    }
+  }
+
+  // Handle PUT request (update room data)
+  if (req.method === "PUT") {
+    const { data } = req.body;
+
+    try {
+      const room = await Room.findOne({ roomId });
+
+      if (!room) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Room not found" });
+      }
+
+      // Update the room's data with the new data
+      room.data = data;
+      await room.save();
+
+      res.json({ success: true, message: "Room data updated successfully" });
+    } catch (error) {
+      console.error("Error updating room data:", error);
+      res.status(500).json({ success: false, message: "Server error" });
+    }
+  }
+};
+
+module.exports = { getOrUpdateRoomData, createRoom };
