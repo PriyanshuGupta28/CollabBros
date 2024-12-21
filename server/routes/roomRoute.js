@@ -1,27 +1,17 @@
-import express from "express"; // Import express
-import { Router } from "express"; // Import Router from express
-import { joinRoom, codeChange } from "../controllers/roomController.js"; // Import controller functions
+const express = require("express");
+const router = express.Router();
+const {
+  getOrUpdateRoomData,
+  createRoom,
+} = require("../controllers/roomController");
 
-const roomRoute = Router(); // Initialize router
+// Route to get or update room data based on HTTP method
+router
+  .route("/rooms/:roomId")
+  .get(getOrUpdateRoomData) // To fetch room data
+  .put(getOrUpdateRoomData); // To update room data
 
-// Example route for checking room status
-// roomRoute.get("/", (req, res) => {
-//   res.send("CollabEdit Room Routes");
-// });
+// Route to create a new room
+router.post("/rooms", createRoom);
 
-// Route to get room details (could be expanded to get room info)
-roomRoute.get("/", async (req, res) => {
-  try {
-    const room = await Room.findOne({ roomName: req.params.roomName });
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
-    }
-    res.json(room);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server Error" });
-  }
-});
-
-// Export the router as default
-export default roomRoute;
+module.exports = router;
