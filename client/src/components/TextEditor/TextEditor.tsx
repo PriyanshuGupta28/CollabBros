@@ -1,31 +1,42 @@
 import React, { useState, useEffect } from "react";
 import { Controlled as CodeMirror } from "react-codemirror2";
-import { MenuItem, Stack, TextField } from "@mui/material";
-import { io, Socket } from "socket.io-client"; // Import socket.io-client and the Socket type
-import "codemirror/lib/codemirror.css"; // Core styles
-import "codemirror/theme/dracula.css"; // Optional theme
-import "codemirror/mode/javascript/javascript"; // JavaScript syntax
-import "codemirror/mode/xml/xml"; // XML syntax
-import "codemirror/mode/css/css"; // CSS syntax
-import "codemirror/addon/edit/closebrackets"; // Auto-close brackets
-import "codemirror/addon/edit/closetag"; // Auto-close tags
-import "codemirror/addon/comment/comment"; // Comment functionality
-import "codemirror/addon/display/fullscreen"; // Fullscreen mode
-import "codemirror/addon/selection/active-line"; // Highlight active line
-import "codemirror/addon/display/placeholder"; // Placeholder text
-import "codemirror/theme/dracula.css"; // Dracula theme
-import "codemirror/theme/material.css"; // Material theme
-import "codemirror/theme/monokai.css"; // Monokai theme
+import {
+  MenuItem,
+  Stack,
+  TextField,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+} from "@mui/material";
+import { io, Socket } from "socket.io-client";
+import axios from "axios"; // Import axios
+import { useParams } from "react-router-dom"; // Import useParams
+import "codemirror/lib/codemirror.css";
+import "codemirror/theme/dracula.css";
+import "codemirror/mode/javascript/javascript";
+import "codemirror/mode/xml/xml";
+import "codemirror/mode/css/css";
+import "codemirror/addon/edit/closebrackets";
+import "codemirror/addon/edit/closetag";
+import "codemirror/addon/comment/comment";
+import "codemirror/addon/display/fullscreen";
+import "codemirror/addon/selection/active-line";
+import "codemirror/addon/display/placeholder";
 import "./TextEditor.css";
+import GenrateButton from "../GenrateButton/GenrateButton";
+import toast, { Toaster } from "react-hot-toast";
 
 const TextEditor: React.FC = () => {
-  const [code, setCode] = useState<string>(""); // Specify type for code state
-  const [language, setLanguage] = useState<string>("javascript"); // Specify type for language state
-  const [theme, setTheme] = useState<string>("dracula"); // Specify type for theme state
-
-  const [socket, setSocket] = useState<Socket | null>(null); // Specify type for socket state
-  const [username, setUsername] = useState<string>("User1"); // Set dynamically as needed
-  const [room, setRoom] = useState<string>("room1"); // Set dynamically as needed
+  const [code, setCode] = useState<string>(""); // State for code
+  const [language, setLanguage] = useState<string>("javascript"); // Code language
+  const [theme, setTheme] = useState<string>("dracula"); // Code theme
+  const [socket, setSocket] = useState<Socket | null>(null); // WebSocket connection
+  const [room, setRoom] = useState<string>(""); // Room ID
+  const [openDialog, setOpenDialog] = useState(false); // Dialog state
+  const [generatedLink, setGeneratedLink] = useState(""); // Generated link
+  const [codeMirrorReadOnly, setCodeMirrorReadOnly] = useState(false);
 
   const languages = [
     { label: "JavaScript", value: "javascript" },
@@ -40,12 +51,20 @@ const TextEditor: React.FC = () => {
     { label: "Material", value: "material" },
     { label: "Monokai", value: "monokai" },
   ];
-  const VITE_APP_SOCKET_SERVER = import.meta.env.VITE_APP_SOCKET_SERVER;
-  useEffect(() => {
-    // Connect to the server and set up the socket
-    const socketIo: Socket = io(VITE_APP_SOCKET_SERVER); // Replace with your server URL
 
+  const VITE_APP_SOCKET_SERVER = import.meta.env.VITE_APP_SOCKET_SERVER;
+  const VITE_APP_FRONTEND_URL = import.meta.env.VITE_APP_FRONTEND_URL;
+
+  // UseParams hook to extract roomId from URL
+  const { roomId } = useParams<{ roomId: string }>();
+
+  // make CODEMIRROR TEXTEDITOR READONLY
+
+  // Effect to initialize socket, join the room, and fetch room data if roomId exists
+  useEffect(() => {
+    const socketIo: Socket = io(VITE_APP_SOCKET_SERVER);
     setSocket(socketIo);
+
     socketIo.on("connect", () => {
       console.log("Connected to WebSocket server!");
     });
@@ -54,67 +73,157 @@ const TextEditor: React.FC = () => {
       console.log("Disconnected from WebSocket server!");
     });
 
-    // Join the room and notify others when a user joins
-    socketIo.emit("joinRoom", { room, username });
+    // If roomId exists, join the room and fetch initial room data
+    if (roomId) {
+      setRoom(roomId); // Set the roomId from the URL
+      socketIo.emit("joinRoom", { room: roomId });
 
-    // Listen for code updates from the server
+      // Fetch initial code from the backend if room exists
+      axios
+        .get(`${VITE_APP_SOCKET_SERVER}/api/rooms/${roomId}`)
+        .then((response) => {
+          // Assuming the backend sends back the code for the room
+          if (response.data.success && response.data.data) {
+            setCode(response.data.data.data); // Set the code to the editor
+          } else {
+            setCode(""); // In case there's no code in the room, set an empty code
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching room data:", error);
+          toast.error("Wrong Room URL");
+        });
+    } else {
+      setCodeMirrorReadOnly(true);
+    }
     socketIo.on("codeUpdate", (newCode: string) => {
-      setCode(newCode); // Update code in the editor when a codeUpdate event is received
+      setCode(newCode); // Update the code when received from WebSocket
     });
 
-    // Clean up on component unmount
     return () => {
       socketIo.disconnect();
     };
-  }, [room, username]);
+  }, [roomId]);
 
   const handleCodeChange = (newCode: string) => {
     setCode(newCode);
-    if (socket) {
-      // Emit the code change to the server
+    if (socket && room) {
+      // Emit the code change to others in the room via socket
       socket.emit("codeChange", { room, code: newCode });
+
+      // Send an update request to the backend to update the code in the database
+      axios
+        .put(`${VITE_APP_SOCKET_SERVER}/api/rooms/${room}`, { data: newCode }) // Ensure we're updating the specific room
+        .then((response) => {
+          if (response.data.success) {
+            console.log("Room data updated successfully");
+          } else {
+            console.error("Failed to update room data");
+          }
+        })
+        .catch((error) => {
+          console.error("Error updating room data:", error);
+          toast.error("Network Error");
+        });
     }
+  };
+
+  // Function to handle the button click and show the popup for generating a new room
+  const handleGenerateLink = async () => {
+    try {
+      const response = await axios.post(`${VITE_APP_SOCKET_SERVER}/api/rooms`);
+      const newRoomId = response.data.roomId;
+      setRoom(newRoomId);
+      setGeneratedLink(`${VITE_APP_FRONTEND_URL}/room/${newRoomId}`);
+      setOpenDialog(true);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error(
+          "Axios Error:",
+          error.response ? error.response.data : error.message
+        );
+      } else {
+        console.error("Unexpected Error:", error);
+      }
+    }
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
   };
 
   return (
     <>
-      <Stack sx={{ flexDirection: { xs: "column", md: "row" }, gap: 2 }}>
-        <TextField
-          id="outlined-select-currency"
-          select
-          label="Theme"
-          defaultValue="dracula"
-          helperText="Please select your theme"
-          value={theme}
-          onChange={(e) => setTheme(e.target.value)}
-        >
-          {themes.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          id="outlined-select-currency"
-          select
-          label="Language"
-          defaultValue="javascript"
-          helperText="Please select your language"
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
-        >
-          {languages.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </TextField>
+      <Toaster />
+      <Stack
+        sx={{
+          flexDirection: { xs: "column", md: "row" },
+          gap: 2,
+          marginTop: { xs: "0rem", md: "1rem" },
+          justifyContent: "space-between",
+        }}
+      >
+        <Stack sx={{ flexDirection: "row", gap: 2 }}>
+          <TextField
+            id="outlined-select-currency"
+            select
+            label="Theme"
+            defaultValue="dracula"
+            helperText="Please select your theme"
+            value={theme}
+            onChange={(e) => setTheme(e.target.value)}
+          >
+            {themes.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            id="outlined-select-currency"
+            select
+            label="Language"
+            defaultValue="javascript"
+            helperText="Please select your language"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+          >
+            {languages.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Stack>
+        <Stack>
+          <Dialog open={openDialog} onClose={handleCloseDialog}>
+            <DialogTitle>Generated Link</DialogTitle>
+            <DialogContent>
+              <p>Click the link below to join the room:</p>
+              <a href={generatedLink} target="_blank" rel="noopener noreferrer">
+                {generatedLink}
+              </a>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCloseDialog} color="primary">
+                Close
+              </Button>
+            </DialogActions>
+          </Dialog>
+          <GenrateButton
+            onClick={handleGenerateLink}
+            btnName={"Gerrate Room"}
+          />
+        </Stack>
       </Stack>
+
       <CodeMirror
         value={code}
         options={{
           mode: language,
           theme: theme,
+          readOnly: codeMirrorReadOnly,
           lineNumbers: true,
           lineWrapping: true,
           autoCloseBrackets: true,
